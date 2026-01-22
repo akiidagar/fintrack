@@ -242,37 +242,59 @@ async function postToSheet(sheetName, data) {
 }
 
 async function deleteFromSheet(rowId, sheetName = "", rowData = null) {
-  // ALWAYS use field matching if we have row data (since SheetDB doesn't have row_id column)
-  // This is more reliable than trying ID-based deletion
-  if (rowData) {
-    console.log("[FinTrack] Using field matching deletion (SheetDB doesn't support row_id)");
-    return await deleteByFieldMatching(rowData, sheetName);
-  }
-  
-  // Only try ID-based deletion if we have an ID but no row data
-  if (!rowId || rowId === "undefined" || rowId === "null" || rowId === "") {
-    throw new Error("Cannot delete: No row ID and no row data provided for deletion");
-  }
-  
-  // Try ID-based deletion as last resort
-  let url = sheetName 
-    ? `${getApiBase()}/id/${rowId}?sheet=${sheetName}`
-    : `${getApiBase()}/id/${rowId}`;
-  
-  try {
-    let response = await fetch(url, { method: "DELETE" });
-    const errorText = response.ok ? "" : await response.text();
-    
+  // ✅ Preferred: use SheetDB auto-generated `id`
+  if (rowId) {
+    const url = sheetName
+      ? `${getApiBase()}/id/${rowId}?sheet=${sheetName}`
+      : `${getApiBase()}/id/${rowId}`;
+
+    const response = await fetch(url, { method: "DELETE" });
     if (!response.ok) {
-      throw new Error(`Delete failed: HTTP ${response.status}: ${errorText}`);
+      const text = await response.text();
+      throw new Error(text);
     }
-    
-    console.log(`[FinTrack] Successfully deleted row with ID: ${rowId}`);
     return true;
-  } catch (error) {
-    console.error(`[FinTrack] Error deleting row ${rowId}:`, error);
-    throw new Error(`Cannot delete: ID-based deletion failed. Please ensure row data is provided for field matching. Error: ${error.message}`);
   }
+
+  // ✅ Fallback: column + value delete (SheetDB supported)
+  if (!rowData) {
+    throw new Error("No rowId or rowData provided for deletion");
+  }
+
+  // Choose a UNIQUE column for deletion
+  const column =
+    rowData.Description
+      ? "Description"
+      : rowData.Name
+      ? "Name"
+      : rowData.Asset
+      ? "Asset"
+      : rowData.Goal
+      ? "Goal"
+      : null;
+
+  const value =
+    rowData.Description ||
+    rowData.Name ||
+    rowData.Asset ||
+    rowData.Goal;
+
+  if (!column || !value) {
+    throw new Error("No unique column/value found for deletion");
+  }
+
+  const deleteUrl = sheetName
+    ? `${getApiBase()}/${column}/${encodeURIComponent(value)}?sheet=${sheetName}`
+    : `${getApiBase()}/${column}/${encodeURIComponent(value)}`;
+
+  const response = await fetch(deleteUrl, { method: "DELETE" });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text);
+  }
+
+  return true;
 }
 
 // Delete by matching field values (fallback when no ID column exists)
