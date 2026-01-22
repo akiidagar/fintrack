@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="FinTrack - Personal Finance Management PWA" />
+  <meta name="theme-color" content="#4CAF50" />
+  <title>FinTrack – Personal Finance Manager</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="FinTrack" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="loginBox" class="login-container">
+  <div class="login-box">
+    <h2>🔐 FinTrack Login</h2>
+    <input id="pinInput" type="password" placeholder="Enter PIN" maxlength="10" autocomplete="off" />
+    <button id="loginBtn" class="btn-primary" onclick="login()">Login</button>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="app-container" style="display:none">
+
+<header class="app-header">
+  <h1>💰 FinTrack</h1>
+  <p class="subtitle">Personal Finance Manager</p>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="dashboardTab">📊 Dashboard</button>
+  <button class="tab-btn" data-tab="transactionsTab">💳 Transactions</button>
+  <button class="tab-btn" data-tab="investmentsTab">📈 Investments</button>
+  <button class="tab-btn" data-tab="sipTab">🔁 SIP</button>
+  <button class="tab-btn" data-tab="fixedTab">📌 Fixed Expenses</button>
+  <button class="tab-btn" data-tab="goalsTab">🎯 Goals</button>
+</nav>
+
+<!-- ================= DASHBOARD ================= -->
+<div id="dashboardTab" class="tab active">
+  <section class="filter-section">
+    <div class="card filter-card">
+      <h4>📅 Filter by Period</h4>
+      <div class="filter-controls">
+        <select id="dashboardFilterType" class="filter-select">
+          <option value="all">All Time</option>
+          <option value="month">Month</option>
+          <option value="year">Year</option>
+        </select>
+        <select id="dashboardFilterMonth" class="filter-select" style="display:none;">
+          <option value="">Select Month</option>
+        </select>
+        <select id="dashboardFilterYear" class="filter-select" style="display:none;">
+          <option value="">Select Year</option>
+        </select>
+        <button id="applyDashboardFilter" class="btn-primary">Apply Filter</button>
+        <button id="resetDashboardFilter" class="btn-secondary">Reset</button>
+      </div>
+      <div class="filter-info" id="dashboardFilterInfo"></div>
+    </div>
+  </section>
+
+  <section class="dashboard">
+    <div class="card kpi-card">
+      <div class="kpi-label">Balance</div>
+      <div class="kpi-value" id="balance">₹0</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Monthly Income</div>
+      <div class="kpi-value" id="income">₹0</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Monthly Expense</div>
+      <div class="kpi-value" id="expense">₹0</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Fixed Expenses</div>
+      <div class="kpi-value" id="fixed">₹0</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">SIP Commitments</div>
+      <div class="kpi-value" id="sip">₹0</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Net Worth</div>
+      <div class="kpi-value" id="networth">₹0</div>
+    </div>
+  </section>
+
+  <section class="chart-section">
+    <h3>📈 Income vs Expense (Cashflow)</h3>
+    <div class="chart-container">
+      <canvas id="cashflowChart"></canvas>
+    </div>
+  </section>
+
+  <section class="chart-section">
+    <h3>📊 Returns Analysis</h3>
+    <div class="chart-container">
+      <canvas id="returnsChart"></canvas>
+    </div>
+  </section>
+
+  <section class="chart-section">
+    <h3>💰 Net Worth Timeline</h3>
+    <div class="chart-container">
+      <canvas id="networthChart"></canvas>
+    </div>
+  </section>
+
+  <section class="insights-section">
+    <h3>🧠 AI Insights</h3>
+    <div id="insights" class="insights-container"></div>
+  </section>
+
+  <section class="actions-section">
+    <div class="card">
+      <button id="installBtn" class="btn-primary" style="display:none;">📱 Install App</button>
+      <button id="logoutBtn" class="btn-secondary">🚪 Logout</button>
+      <button id="changePinBtn" class="btn-secondary">🔑 Change PIN</button>
+      <button id="downloadReportBtn" class="btn-primary">📄 Download Monthly Report</button>
+      
+      <div id="pinChangeBox" class="pin-change-box" style="display:none">
+        <h4>Change PIN</h4>
+        <input id="oldPin" type="password" placeholder="Old PIN" maxlength="10" />
+        <input id="newPin" type="password" placeholder="New PIN (min 4 digits)" maxlength="10" />
+        <button id="savePinBtn" class="btn-primary">Save PIN</button>
+        <button id="cancelPinBtn" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ================= TRANSACTIONS ================= -->
+<div id="transactionsTab" class="tab" style="display:none">
+  <section class="form-section">
+    <h3>💳 Add Transaction</h3>
+    <form id="txnForm" class="form">
+      <select id="txnType" required>
+        <option value="Credit">Credit</option>
+        <option value="Debit">Debit</option>
+      </select>
+      <input id="txnDate" type="date" required />
+      <input id="txnCategory" placeholder="Category (e.g., Salary, Food, Rent)" required />
+      <input id="txnDesc" placeholder="Description (optional)" />
+      <input id="txnAmount" type="number" step="0.01" placeholder="Amount" required min="0" />
+      <button type="submit" class="btn-primary">Add Transaction</button>
+    </form>
+  </section>
+
+  <section class="filter-section">
+    <div class="card filter-card">
+      <h4>📅 Filter Transactions</h4>
+      <div class="filter-controls">
+        <select id="txnFilterType" class="filter-select">
+          <option value="all">All Transactions</option>
+          <option value="month">By Month</option>
+          <option value="year">By Year</option>
+        </select>
+        <select id="txnFilterMonth" class="filter-select" style="display:none;">
+          <option value="">Select Month</option>
+        </select>
+        <select id="txnFilterYear" class="filter-select" style="display:none;">
+          <option value="">Select Year</option>
+        </select>
+        <button id="applyTxnFilter" class="btn-primary">Apply Filter</button>
+        <button id="resetTxnFilter" class="btn-secondary">Reset</button>
+      </div>
+      <div class="filter-info" id="txnFilterInfo"></div>
+    </div>
+  </section>
+
+  <section class="table-section">
+    <h3>Transaction History</h3>
+    <div class="table-container">
+      <table id="txnTable" class="data-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Category</th>
+            <th>Description</th>
+            <th>Amount</th>
+            <th>Source</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="txnTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- ================= INVESTMENTS ================= -->
+<div id="investmentsTab" class="tab" style="display:none">
+  <section class="form-section">
+    <h3>📈 Add Investment</h3>
+    <form id="investmentForm" class="form">
+      <input id="invDate" type="date" required />
+      <input id="invAsset" placeholder="Asset Name (e.g., Nifty 50, Stock XYZ)" required />
+      <input id="invInvested" type="number" step="0.01" placeholder="Invested Amount" required min="0" />
+      <input id="invCurrent" type="number" step="0.01" placeholder="Current Value" required min="0" />
+      <textarea id="invNotes" placeholder="Notes (optional)" rows="3"></textarea>
+      <button type="submit" class="btn-primary">Add Investment</button>
+    </form>
+  </section>
+
+  <section class="table-section">
+    <h3>Investment Portfolio</h3>
+    <div class="table-container">
+      <table id="investmentTable" class="data-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Asset</th>
+            <th>Invested</th>
+            <th>Current</th>
+            <th>Gain/Loss</th>
+            <th>CAGR %</th>
+            <th>Notes</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="investmentTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- ================= SIP ================= -->
+<div id="sipTab" class="tab" style="display:none">
+  <section class="form-section">
+    <h3>🔁 Add SIP</h3>
+    <form id="sipForm" class="form">
+      <input id="sipStartDate" type="date" placeholder="Start Date" required />
+      <input id="sipAsset" placeholder="Asset Name (e.g., Nifty 50 SIP)" required />
+      <input id="sipAmount" type="number" step="0.01" placeholder="Monthly Amount" required min="0" />
+      <input id="sipDay" type="number" placeholder="Debit Day (1-28)" required min="1" max="28" />
+      <input id="sipDurationMonths" type="number" placeholder="Duration (months, 0 = indefinite)" min="0" />
+      <label class="checkbox-label">
+        <input id="sipActive" type="checkbox" checked />
+        <span>Active</span>
+      </label>
+      <button type="submit" class="btn-primary">Add SIP</button>
+    </form>
+  </section>
+
+  <section class="table-section">
+    <h3>SIP Plans</h3>
+    <div class="table-container">
+      <table id="sipTable" class="data-table">
+        <thead>
+          <tr>
+            <th>Start Date</th>
+            <th>Asset</th>
+            <th>Monthly Amount</th>
+            <th>Day</th>
+            <th>Duration</th>
+            <th>Status</th>
+            <th>Last Posted</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="sipTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- ================= FIXED EXPENSES ================= -->
+<div id="fixedTab" class="tab" style="display:none">
+  <section class="form-section">
+    <h3>📌 Add Fixed Expense</h3>
+    <form id="fixedForm" class="form">
+      <input id="fixedName" placeholder="Expense Name (e.g., Rent, EMI, Utilities)" required />
+      <input id="fixedCategory" placeholder="Category (e.g., Housing, Utilities)" />
+      <input id="fixedAmount" type="number" step="0.01" placeholder="Amount" required min="0" />
+      <select id="fixedFrequency" required>
+        <option value="Monthly">Monthly</option>
+        <option value="Quarterly">Quarterly</option>
+        <option value="Yearly">Yearly</option>
+      </select>
+      <input id="fixedDueDay" type="number" placeholder="Due Day (1-31)" required min="1" max="31" />
+      <label class="checkbox-label">
+        <input id="fixedAutoDebit" type="checkbox" checked />
+        <span>Auto Debit</span>
+      </label>
+      <label class="checkbox-label">
+        <input id="fixedActive" type="checkbox" checked />
+        <span>Active</span>
+      </label>
+      <button type="submit" class="btn-primary">Add Fixed Expense</button>
+    </form>
+  </section>
+
+  <section class="table-section">
+    <h3>Fixed Expenses</h3>
+    <div class="table-container">
+      <table id="fixedTable" class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Amount</th>
+            <th>Frequency</th>
+            <th>Due Day</th>
+            <th>Auto Debit</th>
+            <th>Status</th>
+            <th>Last Posted</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="fixedTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- ================= GOALS ================= -->
+<div id="goalsTab" class="tab" style="display:none">
+  <section class="form-section">
+    <h3>🎯 Add Goal</h3>
+    <form id="goalForm" class="form">
+      <input id="goalName" placeholder="Goal Name (e.g., House, Car, Vacation)" required />
+      <input id="goalTarget" type="number" step="0.01" placeholder="Target Amount" required min="0" />
+      <input id="goalCurrent" type="number" step="0.01" placeholder="Current Amount" required min="0" />
+      <input id="goalDeadline" type="date" placeholder="Deadline" />
+      <button type="submit" class="btn-primary">Add Goal</button>
+    </form>
+  </section>
+
+  <section class="goals-section">
+    <h3>Financial Goals</h3>
+    <div id="goals" class="goals-container"></div>
+  </section>
+</div>
+
+</div>
+
+<!-- Logic -->
+<script src="app.js"></script>
+
+</body>
+</html>
