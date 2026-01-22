@@ -130,6 +130,7 @@
       <button id="logoutBtn" class="btn-secondary">🚪 Logout</button>
       <button id="changePinBtn" class="btn-secondary">🔑 Change PIN</button>
       <button id="downloadReportBtn" class="btn-primary">📄 Download Monthly Report</button>
+      <button id="changeApiBtn" class="btn-secondary">🔗 Change API Connection</button>
       
       <div id="pinChangeBox" class="pin-change-box" style="display:none">
         <h4>Change PIN</h4>
@@ -137,6 +138,12 @@
         <input id="newPin" type="password" placeholder="New PIN (min 4 digits)" maxlength="10" />
         <button id="savePinBtn" class="btn-primary">Save PIN</button>
         <button id="cancelPinBtn" class="btn-secondary">Cancel</button>
+      </div>
+      <div id="apiChangeBox" class="pin-change-box" style="display:none">
+        <h4>Change SheetDB API Connection</h4>
+        <input id="apiBaseInput" type="text" placeholder="https://sheetdb.io/api/v1/xxxxxxxx" />
+        <button id="saveApiBtn" class="btn-primary">Save API</button>
+        <button id="cancelApiBtn" class="btn-secondary">Cancel</button>
       </div>
     </div>
   </section>

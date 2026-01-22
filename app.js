@@ -4,7 +4,7 @@
 
 // Configuration
 const CONFIG = {
-  API_BASE: "https://sheetdb.io/api/v1/20ob2rkkecjfg",
+  API_BASE: "",
   SHEETS: {
     TRANSACTIONS: "",
     INVESTMENTS: "investments", // Note: lowercase as per your sheet name
@@ -37,6 +37,14 @@ function setStoredPIN(pin) {
   localStorage.setItem("customPin", pin);
 }
 
+function getApiBase() {
+  return localStorage.getItem("apiBase") || "";
+}
+
+function setApiBase(apiBase) {
+  localStorage.setItem("apiBase", apiBase);
+}
+
 function isAuthenticated() {
   return localStorage.getItem("auth") === "true";
 }
@@ -59,18 +67,27 @@ function login() {
   }
 
   const pin = getStoredPIN();
-  if (input.value === pin) {
-    setAuth(true);
-    document.getElementById("loginBox").style.display = "none";
-    document.getElementById("app").style.display = "block";
-
-    initializeApp();
-    showTab("dashboardTab");
-  } else {
+  if (input.value !== pin) {
     alert("❌ Wrong PIN. Please try again.");
     input.value = "";
     input.focus();
+    return;
   }
+
+  // Auth success
+  setAuth(true);
+  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("app").style.display = "block";
+
+  showTab("dashboardTab");
+
+  // AFTER login → check API base
+  if (!getApiBase()) {
+    showApiBasePopup();
+    return;
+  }
+
+  initializeApp();
 }
 
 function logout() {
@@ -167,8 +184,8 @@ function showTab(tabId) {
 
 async function fetchSheet(sheetName = "") {
   const url = sheetName 
-    ? `${CONFIG.API_BASE}?sheet=${sheetName}`
-    : CONFIG.API_BASE;
+    ? `${getApiBase()}?sheet=${sheetName}`
+    : getApiBase();
   
   try {
     const response = await fetch(url);
@@ -207,8 +224,8 @@ async function fetchSheet(sheetName = "") {
 
 async function postToSheet(sheetName, data) {
   const url = sheetName 
-    ? `${CONFIG.API_BASE}?sheet=${sheetName}`
-    : CONFIG.API_BASE;
+    ? `${getApiBase()}?sheet=${sheetName}`
+    : getApiBase();
   
   try {
     const response = await fetch(url, {
@@ -239,8 +256,8 @@ async function deleteFromSheet(rowId, sheetName = "", rowData = null) {
   
   // Try ID-based deletion as last resort
   let url = sheetName 
-    ? `${CONFIG.API_BASE}/id/${rowId}?sheet=${sheetName}`
-    : `${CONFIG.API_BASE}/id/${rowId}`;
+    ? `${getApiBase()}/id/${rowId}?sheet=${sheetName}`
+    : `${getApiBase()}/id/${rowId}`;
   
   try {
     let response = await fetch(url, { method: "DELETE" });
@@ -302,8 +319,8 @@ async function deleteByFieldMatching(rowData, sheetName = "") {
   
   // SheetDB search uses query parameters directly
   const baseUrl = sheetName 
-    ? `${CONFIG.API_BASE}?sheet=${sheetName}`
-    : CONFIG.API_BASE;
+    ? `${getApiBase()}?sheet=${sheetName}`
+    : getApiBase();
   
   // First, search for the row - append query params correctly
   const separator = baseUrl.includes("?") ? "&" : "?";
@@ -337,8 +354,8 @@ async function deleteByFieldMatching(rowData, sheetName = "") {
   console.log("[FinTrack] Attempting delete using search parameters...");
   
   const deleteUrl = sheetName 
-    ? `${CONFIG.API_BASE}?sheet=${sheetName}`
-    : CONFIG.API_BASE;
+    ? `${getApiBase()}?sheet=${sheetName}`
+    : getApiBase();
   
   // Try DELETE with search params
   const deleteWithParams = `${deleteUrl}&${queryString}`;
@@ -353,8 +370,8 @@ async function deleteByFieldMatching(rowData, sheetName = "") {
   if (deleteId) {
     console.log(`[FinTrack] Trying to delete using found ID: ${deleteId}`);
     const idDeleteUrl = sheetName 
-      ? `${CONFIG.API_BASE}/id/${deleteId}?sheet=${sheetName}`
-      : `${CONFIG.API_BASE}/id/${deleteId}`;
+      ? `${getApiBase()}/id/${deleteId}?sheet=${sheetName}`
+      : `${getApiBase()}/id/${deleteId}`;
     
     deleteResponse = await fetch(idDeleteUrl, { method: "DELETE" });
     
@@ -388,8 +405,8 @@ async function deleteByPostingRowData(rowData, sheetName, fullRowData) {
   
   // Try DELETE with complete row data in body
   const deleteUrl = sheetName 
-    ? `${CONFIG.API_BASE}?sheet=${sheetName}`
-    : CONFIG.API_BASE;
+    ? `${getApiBase()}?sheet=${sheetName}`
+    : getApiBase();
   
   try {
     // Some SheetDB setups support DELETE with row data
@@ -419,8 +436,8 @@ async function updateSheet(rowId, data, sheetName = "") {
   // SheetDB supports both /id/ and /row_id/ endpoints
   // Try /id/ first as it's more common
   let url = sheetName 
-    ? `${CONFIG.API_BASE}/id/${rowId}?sheet=${sheetName}`
-    : `${CONFIG.API_BASE}/id/${rowId}`;
+    ? `${getApiBase()}/id/${rowId}?sheet=${sheetName}`
+    : `${getApiBase()}/id/${rowId}`;
   
   try {
     let response = await fetch(url, {
@@ -432,8 +449,8 @@ async function updateSheet(rowId, data, sheetName = "") {
     // If 404, try with row_id endpoint
     if (response.status === 404) {
       url = sheetName 
-        ? `${CONFIG.API_BASE}/row_id/${rowId}?sheet=${sheetName}`
-        : `${CONFIG.API_BASE}/row_id/${rowId}`;
+        ? `${getApiBase()}/row_id/${rowId}?sheet=${sheetName}`
+        : `${getApiBase()}/row_id/${rowId}`;
       response = await fetch(url, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -1802,6 +1819,53 @@ function setupEventListeners() {
     cancelPinBtn.addEventListener("click", togglePinChange);
   }
 
+  // ============================
+  // CHANGE API CONNECTION
+  // ============================
+  const changeApiBtn = document.getElementById("changeApiBtn");
+  const saveApiBtn = document.getElementById("saveApiBtn");
+  const cancelApiBtn = document.getElementById("cancelApiBtn");
+  const apiChangeBox = document.getElementById("apiChangeBox");
+  const apiBaseInput = document.getElementById("apiBaseInput");
+
+  if (changeApiBtn && apiChangeBox && apiBaseInput) {
+    changeApiBtn.addEventListener("click", () => {
+      apiChangeBox.style.display = "block";
+      const pinBox = document.getElementById("pinChangeBox");
+      if (pinBox) pinBox.style.display = "none";
+      apiBaseInput.value = getApiBase() || "";
+    });
+  }
+
+  if (cancelApiBtn && apiChangeBox) {
+    cancelApiBtn.addEventListener("click", () => {
+      apiChangeBox.style.display = "none";
+    });
+  }
+
+  if (saveApiBtn && apiBaseInput && apiChangeBox) {
+    saveApiBtn.addEventListener("click", () => {
+      const api = apiBaseInput.value.trim();
+
+      if (!api) {
+        alert("❌ API URL cannot be empty.");
+        return;
+      }
+
+      if (!api.startsWith("https://sheetdb.io/api/")) {
+        alert("❌ Please enter a valid SheetDB API URL.");
+        return;
+      }
+
+      setApiBase(api);
+      apiChangeBox.style.display = "none";
+      showNotification("✅ API connection updated successfully!");
+
+      // Reload everything with new API
+      loadDashboard();
+    });
+  }
+
   // Tab navigation
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -2035,3 +2099,27 @@ window.addEventListener("load", () => {
     }
   }
 })();
+
+function showApiBasePopup() {
+  let api = prompt(
+    "🔗 Enter your SheetDB API URL\n\nExample:\nhttps://sheetdb.io/api/v1/xxxxxxxx",
+    ""
+  );
+
+  if (!api) {
+    alert("❌ API URL is required to continue.");
+    logout();
+    return;
+  }
+
+  api = api.trim();
+  if (!api.startsWith("https://sheetdb.io/api/")) {
+    alert("❌ Invalid SheetDB API URL.");
+    showApiBasePopup();
+    return;
+  }
+
+  setApiBase(api);
+  showNotification("✅ API connected successfully!");
+  initializeApp();
+}
